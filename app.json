@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Agripay",
+    "slug": "agripay-app",
+    "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.agripay.app"
+    },
+    "web": {}
+  }
+}

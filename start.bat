@@ -1,0 +1,3 @@
+@echo off
+echo Clearing Expo cache and starting Agripay...
+npx expo start --clear --tunnel

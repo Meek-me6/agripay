@@ -1,0 +1,3 @@
+@echo off
+echo Starting Agripay on local network...
+npx expo start --clear
