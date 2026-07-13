@@ -6,13 +6,18 @@
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
     "android": {
       "package": "com.agripay.app"
     },
-    "web": {}
+    "web": {},
+    "plugins": [
+      "expo-sqlite"
+    ]
   }
 }

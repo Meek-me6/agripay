@@ -1,46 +1,74 @@
 import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
-import PriceBoardScreen from '../screens/PriceBoardScreen';
 import MarketplaceScreen from '../screens/MarketplaceScreen';
 import SubsidyScreen from '../screens/SubsidyScreen';
 import CooperativeScreen from '../screens/CooperativeScreen';
 import CreditScreen from '../screens/CreditScreen';
+import WalletScreen from '../screens/WalletScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import { colors } from '../theme/colors';
+import { colors, shadow } from '../theme/colors';
 
 const Tab = createBottomTabNavigator();
 
-const iconFor = {
-  Home: 'home-outline',
-  Prices: 'trending-up-outline',
-  Marketplace: 'cart-outline',
-  Subsidy: 'cash-outline',
-  Cooperative: 'people-outline',
-  Credit: 'card-outline',
-  Profile: 'person-outline',
-};
+const TABS = [
+  { name: 'Home',        icon: 'home',         iconOut: 'home-outline',           component: HomeScreen },
+  { name: 'Marketplace', icon: 'storefront',   iconOut: 'storefront-outline',     component: MarketplaceScreen },
+  { name: 'Subsidy',     icon: 'cash',         iconOut: 'cash-outline',           component: SubsidyScreen },
+  { name: 'Cooperative', icon: 'people',       iconOut: 'people-outline',         component: CooperativeScreen },
+  { name: 'Credit',      icon: 'card',         iconOut: 'card-outline',           component: CreditScreen },
+  { name: 'Wallet',      icon: 'wallet',       iconOut: 'wallet-outline',         component: WalletScreen },
+  { name: 'Profile',     icon: 'person',       iconOut: 'person-outline',         component: ProfileScreen },
+];
+
+function TabIcon({ focused, icon, iconOut, color }) {
+  return (
+    <Ionicons name={focused ? icon : iconOut} size={22} color={color} />
+  );
+}
 
 export default function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarIcon: ({ color, size }) => (
-          <Ionicons name={iconFor[route.name]} size={size} color={color} />
-        ),
-      })}
+      screenOptions={({ route }) => {
+        const tab = TABS.find(t => t.name === route.name);
+        return {
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.textMuted,
+          tabBarIcon: ({ focused, color }) => (
+            <TabIcon focused={focused} icon={tab.icon} iconOut={tab.iconOut} color={color} />
+          ),
+          tabBarStyle: styles.tabBar,
+          tabBarLabelStyle: styles.tabLabel,
+          tabBarItemStyle: styles.tabItem,
+        };
+      }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Prices" component={PriceBoardScreen} />
-      <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
-      <Tab.Screen name="Subsidy" component={SubsidyScreen} />
-      <Tab.Screen name="Cooperative" component={CooperativeScreen} />
-      <Tab.Screen name="Credit" component={CreditScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      {TABS.map(t => (
+        <Tab.Screen key={t.name} name={t.name} component={t.component} />
+      ))}
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: colors.card,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    height: 60,
+    paddingBottom: 6,
+    paddingTop: 6,
+    ...shadow.md,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  tabItem: {
+    paddingVertical: 2,
+  },
+});

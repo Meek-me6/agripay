@@ -1,68 +1,63 @@
+/**
+ * src/api/moolreClient.js
+ *
+ * Moolre API clients for direct calls from the app.
+ * Credentials baked in exactly as provided by Ernest Boamah (7 Jul 2026).
+ *
+ * NOTE: All payment/transfer calls go through the Express backend
+ *       (see accountApi, paymentsApi, transfersApi, walletApi).
+ *       This file is kept for any direct Moolre calls that may be
+ *       needed, but the backend should be the primary integration point.
+ *
+ * moolrePayment  — uses X-API-PUBKEY (for /open/transact/payment)
+ * moolreTransfer — uses X-API-KEY    (for /open/transact/transfer)
+ */
 import axios from 'axios';
 
-/**
- * MOOLRE API CLIENT — Agripay
- * ---------------------------------------------------------------
- * Moolre's docs list requests authenticated via headers that vary
- * by endpoint family: X-API-USER, X-API-KEY, X-API-PUBKEY, and
- * X-API-VASKEY. Since it wasn't clear from the competition info
- * whether this is one shared key or several distinct ones, every
- * slot below is a separate placeholder. Paste in whatever Moolre
- * actually issues you — if it's a single key, just fill in
- * MOOLRE_API_KEY and leave the rest blank, the client only sends
- * headers that have a value.
- *
- * SECURITY NOTE: Hardcoding real secret keys here and shipping
- * them in an Expo Go / built app is NOT safe for production —
- * they'd be extractable from the bundle. For the competition demo
- * this is fine. Before any real money moves, put Transfers/
- * Payments/Account calls behind your own backend and have the
- * app call YOUR server instead of Moolre directly. Toggle that
- * below with USE_BACKEND_PROXY.
- */
+const BASE_URL   = 'https://api.moolre.com';
+const API_USER   = 'gbekus';
+// Private key (X-API-KEY) — updated July 2026
+const API_KEY    = 'zymdxlRASW5uATWE7Sm4Xo2uH6DDzacsnqbdpS1k4cEaZrb6fzJ9DcgIL1oo3W53';
+// Public key (X-API-PUBKEY)
+const API_PUBKEY = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyaWQiOjEwOTAwMSwiZXhwIjoxOTU2NTQ1OTk5fQ.k-zaeQo62LD7KgvDwE-xHsjfD_TqXxZst1FiSDcBUZs';
+// Moolre account number
+export const MOOLRE_ACCOUNT_NUMBER = '10900106071803';
 
-// ---- 1. PASTE YOUR MOOLRE CREDENTIALS HERE ----
-const MOOLRE_API_USER = 'YOUR_MOOLRE_API_USER_HERE';
-const MOOLRE_API_KEY = 'YOUR_MOOLRE_API_KEY_HERE';
-const MOOLRE_API_PUBKEY = 'YOUR_MOOLRE_API_PUBKEY_HERE';
-const MOOLRE_API_VASKEY = 'YOUR_MOOLRE_API_VASKEY_HERE';
+// Payment client — X-API-USER + X-API-PUBKEY
+export const moolrePayment = axios.create({
+  baseURL: BASE_URL,
+  timeout: 20000,
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-USER':   API_USER,
+    'X-API-PUBKEY': API_PUBKEY,
+  },
+});
 
-const MOOLRE_BASE_URL = 'https://api.moolre.com'; // confirm exact base path in current docs
+// Transfer client — X-API-USER + X-API-KEY
+export const moolreTransfer = axios.create({
+  baseURL: BASE_URL,
+  timeout: 20000,
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-USER':   API_USER,
+    'X-API-KEY':    API_KEY,
+  },
+});
 
-// ---- 2. DEMO vs BACKEND-PROXY MODE ----
-// false = app calls Moolre directly (fine for a hackathon demo)
-// true  = app calls YOUR backend at BACKEND_URL, which then calls Moolre
-const USE_BACKEND_PROXY = false;
-const BACKEND_URL = 'https://your-backend.example.com/api';
-
-function buildHeaders() {
-  const headers = { 'Content-Type': 'application/json' };
-  if (MOOLRE_API_USER && !MOOLRE_API_USER.startsWith('YOUR_'))
-    headers['X-API-USER'] = MOOLRE_API_USER;
-  if (MOOLRE_API_KEY && !MOOLRE_API_KEY.startsWith('YOUR_'))
-    headers['X-API-KEY'] = MOOLRE_API_KEY;
-  if (MOOLRE_API_PUBKEY && !MOOLRE_API_PUBKEY.startsWith('YOUR_'))
-    headers['X-API-PUBKEY'] = MOOLRE_API_PUBKEY;
-  if (MOOLRE_API_VASKEY && !MOOLRE_API_VASKEY.startsWith('YOUR_'))
-    headers['X-API-VASKEY'] = MOOLRE_API_VASKEY;
-  return headers;
+// Error logger
+function attachLogger(client, label) {
+  client.interceptors.response.use(
+    (res) => res,
+    (err) => {
+      console.error(`[Moolre:${label}]`, err?.response?.status, err?.response?.data || err.message);
+      return Promise.reject(err);
+    }
+  );
 }
 
-export const moolreClient = axios.create({
-  baseURL: USE_BACKEND_PROXY ? BACKEND_URL : MOOLRE_BASE_URL,
-  timeout: 15000,
-});
+attachLogger(moolrePayment,  'payment');
+attachLogger(moolreTransfer, 'transfer');
 
-moolreClient.interceptors.request.use((config) => {
-  if (!USE_BACKEND_PROXY) {
-    config.headers = { ...config.headers, ...buildHeaders() };
-  }
-  return config;
-});
-
-export const keysConfigured = () =>
-  [MOOLRE_API_USER, MOOLRE_API_KEY, MOOLRE_API_PUBKEY, MOOLRE_API_VASKEY].some(
-    (k) => k && !k.startsWith('YOUR_')
-  );
-
-export default moolreClient;
+// Default export kept for any file that still imports the old single client
+export default moolrePayment;

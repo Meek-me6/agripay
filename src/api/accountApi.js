@@ -1,33 +1,44 @@
-import moolreClient from './moolreClient';
+/**
+ * src/api/accountApi.js
+ *
+ * Account API — proxied through the Express backend.
+ * The backend talks to Moolre's /open/account/* endpoints
+ * and keeps credentials server-side.
+ *
+ * POST /account/status       — Moolre account status & balance
+ * POST /account/transactions — transaction history
+ * POST /account/update       — update account settings
+ */
+import backendClient from './backendClient';
 
 /**
- * Account API — wallets, sub-accounts, balances.
- * Used by: Credit module (transaction history as score proxy),
- * Cooperative module (group savings sub-accounts).
- *
- * TODO: confirm exact endpoint paths against current Moolre docs —
- * placeholders below follow Moolre's general REST pattern.
+ * Get Moolre account status / balance.
+ * @returns {object} Moolre account status
  */
-
-export async function getWalletBalance(accountId) {
-  const { data } = await moolreClient.get(`/account/balance`, {
-    params: { account: accountId },
-  });
+export async function getAccountStatus() {
+  const client = await backendClient();
+  const { data } = await client.post('/account/status');
   return data;
 }
 
-export async function createSubAccount(farmerProfile) {
-  const { data } = await moolreClient.post(`/account/sub-account`, {
-    name: farmerProfile.name,
-    phone: farmerProfile.phone,
-    type: 'individual',
-  });
+/**
+ * Get transaction history.
+ * @param {object} opts - optional { startdate, enddate, limit }
+ * @returns {object} transaction list
+ */
+export async function getTransactionHistory(opts = {}) {
+  const client = await backendClient();
+  const { data } = await client.post('/account/transactions', opts);
   return data;
 }
 
-export async function getTransactionHistory(accountId) {
-  const { data } = await moolreClient.get(`/account/transactions`, {
-    params: { account: accountId },
-  });
+/**
+ * Update Moolre account settings.
+ * @param {object} settings
+ * @returns {object} updated account info
+ */
+export async function updateAccount(settings = {}) {
+  const client = await backendClient();
+  const { data } = await client.post('/account/update', settings);
   return data;
 }
