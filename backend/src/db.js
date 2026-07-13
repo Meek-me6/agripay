@@ -9,28 +9,28 @@ const { Pool } = require('pg');
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.error('[db] FATAL: DATABASE_URL is not set! Check Railway environment variables.');
-  process.exit(1);
+  console.error('[db] WARNING: DATABASE_URL is not set!');
 }
 
-const pool = new Pool({
+const pool = connectionString ? new Pool({
   connectionString,
   ssl: connectionString.includes('localhost') ? false : { rejectUnauthorized: false },
-});
+}) : null;
 
-pool.on('error', (err) => {
-  console.error('[pg] Unexpected pool error:', err.message);
-});
+if (pool) {
+  pool.on('error', (err) => {
+    console.error('[pg] Unexpected pool error:', err.message);
+  });
 
-// Test connection on startup so errors appear in Railway logs immediately
-pool.connect((err, client, release) => {
-  if (err) {
-    console.error('[db] STARTUP CONNECTION FAILED:', err.message);
-    console.error('[db] DATABASE_URL starts with:', connectionString.slice(0, 30));
-  } else {
-    console.log('[db] Connected to PostgreSQL successfully');
-    release();
-  }
-});
+  pool.connect((err, client, release) => {
+    if (err) {
+      console.error('[db] STARTUP CONNECTION FAILED:', err.message);
+      console.error('[db] URL preview:', connectionString.replace(/:([^:@]+)@/, ':***@').slice(0, 60));
+    } else {
+      console.log('[db] Connected to PostgreSQL successfully');
+      release();
+    }
+  });
+}
 
 module.exports = pool;
