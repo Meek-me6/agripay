@@ -9,7 +9,7 @@
 // EXPO_PUBLIC_* vars are automatically available via process.env in Expo SDK 49+
 // Set EXPO_PUBLIC_BACKEND_URL in your .env file (see .env.example)
 export const BACKEND_URL =
-  process.env.EXPO_PUBLIC_BACKEND_URL || 'https://agripay-backend-production.up.railway.app';
+  process.env.EXPO_PUBLIC_BACKEND_URL || 'https://agripay-backend-api-production.up.railway.app';
 
 // ─── Locale / currency ────────────────────────────────────────────────────────
 export const CURRENCY         = 'GHS';          // ISO 4217 currency code

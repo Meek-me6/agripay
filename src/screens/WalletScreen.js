@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFarmer } from '../context/FarmerContext';
-import { depositToWallet, withdrawFromWallet, checkPaymentStatus, checkTransferStatus } from '../api/walletApi';
+import { depositToWallet, withdrawFromWallet, checkTransferStatus } from '../api/walletApi';
 import { colors, spacing, radius, typography, shadow } from '../theme/colors';
 import { CURRENCY } from '../config/appConfig';
 
@@ -42,28 +42,33 @@ export default function WalletScreen() {
       // Refresh farmer profile from the server to get the updated balance
       refreshFarmer();
 
-      // Poll Moolre for confirmation (up to 3 attempts, 4s apart)
+      // For withdrawals: poll Moolre for confirmation (up to 3 attempts, 4s apart)
+      // For deposits: the webhook will credit the balance asynchronously — just
+      // refresh the profile after a short delay to catch a fast confirmation.
       const ref = result.payment_ref || result.transfer_ref;
       let confirmed = false;
-      if (ref) {
-        const statusFn = tab === 'deposit' ? checkPaymentStatus : checkTransferStatus;
+      if (tab === 'withdraw' && ref) {
         for (let i = 0; i < 3; i++) {
           await new Promise(r => setTimeout(r, 4000));
           try {
-            const status = await statusFn(ref);
-            // txstatus=1 means success per Moolre webhook spec
+            const status = await checkTransferStatus(ref);
             if (status?.data?.txstatus === 1 || status?.code === 'P01') {
               confirmed = true;
+              refreshFarmer();
               break;
             }
           } catch (_) { /* keep polling */ }
         }
+      } else if (tab === 'deposit') {
+        // Give the webhook a few seconds to fire, then refresh the balance
+        await new Promise(r => setTimeout(r, 5000));
+        refreshFarmer();
       }
 
       Alert.alert(
-        tab === 'deposit' ? '✅ Deposit initiated' : '✅ Withdrawal initiated',
+        tab === 'deposit' ? '📲 Approve on your phone' : '✅ Withdrawal initiated',
         tab === 'deposit'
-          ? `${CURRENCY} ${val} request sent. ${confirmed ? 'Payment confirmed ✓' : 'You will receive a MoMo prompt shortly.'}\nNew balance: ${CURRENCY} ${parseFloat(result.wallet_balance).toFixed(2)}`
+          ? `A MoMo prompt has been sent to ${phone}.\nApprove it to complete your deposit of ${CURRENCY} ${val}.\n\nYour balance will update automatically once confirmed.`
           : `${CURRENCY} ${val} sent to ${phone}. ${confirmed ? 'Transfer confirmed ✓' : 'Processing — funds will arrive shortly.'}\nNew balance: ${CURRENCY} ${parseFloat(result.wallet_balance).toFixed(2)}`
       );
       setAmount('');

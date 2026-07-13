@@ -20,13 +20,29 @@ router.post('/payment', async (req, res) => {
 
   try {
     if (externalref?.startsWith('deposit_')) {
-      await db.query(
-        `INSERT INTO activity (farmer_id, type, text, icon) VALUES (NULL, 'wallet', $1, $2)`,
-        [
-          success ? `Deposit confirmed — ref: ${externalref}` : `Deposit failed — ref: ${externalref}`,
-          success ? 'checkmark-circle-outline' : 'close-circle-outline',
-        ]
-      );
+      // externalref format: deposit_{farmerId}_{amount}_{timestamp}
+      const parts    = externalref.split('_');
+      const farmerId = parts[1];
+      const amount   = parseFloat(parts[2]);
+
+      if (success && farmerId && !isNaN(amount)) {
+        // Credit the wallet now that payment is confirmed
+        await db.query(
+          `UPDATE farmers SET wallet_balance = wallet_balance + $1 WHERE id = $2`,
+          [amount, farmerId]
+        );
+        await db.query(
+          `INSERT INTO activity (farmer_id, type, text, icon) VALUES ($1, 'wallet', $2, 'arrow-down-circle-outline')`,
+          [farmerId, `Deposit of GHS ${amount.toFixed(2)} confirmed`]
+        );
+        console.log(`[Webhook] Credited GHS ${amount} to farmer ${farmerId}`);
+      } else if (!success && farmerId) {
+        await db.query(
+          `INSERT INTO activity (farmer_id, type, text, icon) VALUES ($1, 'wallet', $2, 'close-circle-outline')`,
+          [farmerId, `Deposit failed — ref: ${externalref}`]
+        );
+        console.warn(`[Webhook] Deposit failed for farmer ${farmerId}, ref: ${externalref}`);
+      }
     } else if (externalref?.startsWith('coop_') && success) {
       await db.query(
         `UPDATE coop_contributions SET payment_ref = $1, confirmed = true WHERE payment_ref = $2`,

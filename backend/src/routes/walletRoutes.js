@@ -20,7 +20,8 @@ router.post('/deposit', auth, async (req, res) => {
   if (!phone) return res.status(400).json({ error: 'Phone number required' });
 
   const channel     = CHANNEL_MAP[channelKey] || CHANNEL_MAP.mtn;
-  const externalref = `deposit_${req.farmer.id}_${Date.now()}`;
+  // Encode farmerId and amount in the ref so the webhook can credit the right account
+  const externalref = `deposit_${req.farmer.id}_${parseFloat(amount)}_${Date.now()}`;
   let payment_ref   = externalref;
 
   try {
@@ -36,16 +37,22 @@ router.post('/deposit', auth, async (req, res) => {
     return res.status(502).json({ error: 'Deposit failed', detail: e?.response?.data || e.message });
   }
 
-  const { rows } = await db.query(
-    `UPDATE farmers SET wallet_balance = wallet_balance + $1 WHERE id = $2
-     RETURNING wallet_balance`,
-    [parseFloat(amount), req.farmer.id]
-  );
-  await db.query(
-    `INSERT INTO activity (farmer_id, type, text, icon) VALUES ($1, 'wallet', $2, 'arrow-down-circle-outline')`,
-    [req.farmer.id, `Deposited ${CURRENCY} ${amount} to wallet`]
-  );
-  res.json({ wallet_balance: rows[0].wallet_balance, payment_ref });
+  // DO NOT credit the wallet here. The webhook (/webhook/payment) will credit
+  // it once Moolre confirms the payment (txstatus === 1). We just return the
+  // current balance so the UI can display it correctly.
+  try {
+    const { rows } = await db.query(
+      `SELECT wallet_balance FROM farmers WHERE id = $1`, [req.farmer.id]
+    );
+    await db.query(
+      `INSERT INTO activity (farmer_id, type, text, icon) VALUES ($1, 'wallet', $2, 'time-outline')`,
+      [req.farmer.id, `Deposit of ${CURRENCY} ${amount} pending MoMo confirmation`]
+    );
+    res.json({ wallet_balance: rows[0].wallet_balance, payment_ref });
+  } catch (e) {
+    console.error('[wallet deposit db]', e.message);
+    res.status(500).json({ error: 'Deposit initiated but failed to read balance', payment_ref });
+  }
 });
 
 // POST /wallet/withdraw
@@ -79,15 +86,20 @@ router.post('/withdraw', auth, async (req, res) => {
     return res.status(502).json({ error: 'Withdrawal failed', detail: e?.response?.data || e.message });
   }
 
-  const { rows } = await db.query(
-    `UPDATE farmers SET wallet_balance = wallet_balance - $1 WHERE id = $2 RETURNING wallet_balance`,
-    [parseFloat(amount), req.farmer.id]
-  );
-  await db.query(
-    `INSERT INTO activity (farmer_id, type, text, icon) VALUES ($1, 'wallet', $2, 'arrow-up-circle-outline')`,
-    [req.farmer.id, `Withdrew ${CURRENCY} ${amount} to MoMo`]
-  );
-  res.json({ wallet_balance: rows[0].wallet_balance, transfer_ref });
+  try {
+    const { rows } = await db.query(
+      `UPDATE farmers SET wallet_balance = wallet_balance - $1 WHERE id = $2 RETURNING wallet_balance`,
+      [parseFloat(amount), req.farmer.id]
+    );
+    await db.query(
+      `INSERT INTO activity (farmer_id, type, text, icon) VALUES ($1, 'wallet', $2, 'arrow-up-circle-outline')`,
+      [req.farmer.id, `Withdrew ${CURRENCY} ${amount} to MoMo`]
+    );
+    res.json({ wallet_balance: rows[0].wallet_balance, transfer_ref });
+  } catch (e) {
+    console.error('[wallet withdraw db]', e.message);
+    res.status(500).json({ error: 'Failed to update wallet after withdrawal', transfer_ref });
+  }
 });
 
 // GET /wallet/status/:ref
